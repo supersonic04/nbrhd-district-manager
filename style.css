@@ -23,3 +23,9 @@ h1 {
   border-radius: 4px;
   font-size: 14px;
 }
+
+.fire-station-icon div {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
