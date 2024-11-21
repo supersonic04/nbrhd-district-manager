@@ -149,40 +149,7 @@ document.getElementById('exportBtn').addEventListener('click', () => {
   downloadFile(csv, "updated_neighbourhoods.csv");
 });
 
-const exportBoundaryBtn = document.createElement('button');
-exportBoundaryBtn.textContent = "Export District Boundaries";
-exportBoundaryBtn.id = "exportBoundaryBtn";
-document.querySelector('#sidebar .controls').appendChild(exportBoundaryBtn);
 
-document.getElementById('exportBoundaryBtn').addEventListener('click', () => {
-  const districtBoundaries = mergeDistrictBoundaries(neighbourhoodsLayer.toGeoJSON());
-  const geoJSON = JSON.stringify(districtBoundaries);
-  downloadFile(geoJSON, "district_boundaries.geojson");
-});
-
-function mergeDistrictBoundaries(geojson) {
-  const districtsGeoJSON = {};
-
-  geojson.features.forEach(feature => {
-    const district = feature.properties.district;
-
-    if (!districtsGeoJSON[district]) {
-      districtsGeoJSON[district] = turf.featureCollection([]);
-    }
-
-    districtsGeoJSON[district].features.push(feature);
-  });
-
-  const mergedBoundaries = Object.entries(districtsGeoJSON).map(
-    ([district, collection]) => {
-      const merged = turf.union(...collection.features);
-      merged.properties = { District: district };
-      return merged;
-    }
-  );
-
-  return turf.featureCollection(mergedBoundaries);
-}
 
 function downloadFile(data, filename) {
   const blob = new Blob([data], { type: 'text/plain;charset=utf-8;' });
