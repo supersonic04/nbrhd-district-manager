@@ -1,12 +1,22 @@
-const map = L.map('map').setView([53.5461, -113.4938], 12); // Adjust coordinates as needed
+const map = L.map('map').setView([53.5461, -113.4938], 12);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-let neighbourhoodsLayer, csvData = [];
+let neighbourhoodsLayer, fireStationsLayer, csvData = [];
 const districts = {};
 const colors = ["#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#FF00FF", "#00FFFF"];
 
-// Hardcoded GeoJSON file
+// Hardcoded GeoJSON files
 const geoJSONFile = 'geojson/neighbourhoods.geojson';
+const fireStationsGeoJSONFile = 'geojson/fire_stations.geojson';
+
+// Fire station icon setup
+const fireStationIcon = (stationNumber) =>
+  L.divIcon({
+    className: 'fire-station-icon',
+    html: `<div style="background-color:#FF5722; color:#FFFFFF; border-radius:50%; padding:10px; text-align:center; width:30px; height:30px; line-height:30px;">${stationNumber}</div>`,
+    iconSize: [30, 30],
+    iconAnchor: [15, 15],
+  });
 
 document.getElementById('csvInput').addEventListener('change', (event) => {
   const file = event.target.files[0];
@@ -23,12 +33,10 @@ document.getElementById('csvInput').addEventListener('change', (event) => {
 });
 
 function processCSVData(data) {
-  // Transform data to split event counts by year
   const groupedData = data.reduce((acc, row) => {
     const key = row['NEIGHBOURHOOD_NUMBER'];
-    if (!acc[key]) acc[key] = { name: row['NEIGHBOURHOOD_NAME'], 2023: 0, 2024: 0, district: null };
+    if (!acc[key]) acc[key] = { name: row['NEIGHBOURHOOD_NAME'], 2023: 0, 2024: 0, district: row['District'] };
     acc[key][row.year] += parseInt(row.EventCount, 10) || 0;
-    acc[key].district = row.district || null;
     return acc;
   }, {});
   csvData = Object.entries(groupedData).map(([number, values]) => ({
@@ -44,6 +52,7 @@ function loadGeoJSON() {
     .then(geojson => {
       const joinedGeoJSON = joinCSVToGeoJSON(geojson, csvData);
       renderMap(joinedGeoJSON);
+      loadFireStations();
     });
 }
 
@@ -52,7 +61,7 @@ function joinCSVToGeoJSON(geojson, csv) {
     const match = csv.find(row => row['NEIGHBOURHOOD_NUMBER'] == feature.properties['NEIGHBOURHOOD_NUMBER']);
     if (match) {
       feature.properties = { ...feature.properties, ...match };
-      const district = match.district || 1; // Default district to 1 if not provided
+      const district = match.district || 1;
       feature.properties.district = district;
       if (!districts[district]) districts[district] = [];
       districts[district].push(feature);
@@ -75,7 +84,8 @@ function renderMap(joinedGeoJSON) {
         <strong>${feature.properties['NEIGHBOURHOOD_NAME']}</strong><br>
         Neighbourhood #: ${feature.properties['NEIGHBOURHOOD_NUMBER']}<br>
         2023 Events: ${feature.properties[2023]}<br>
-        2024 Events: ${feature.properties[2024]}
+        2024 Events: ${feature.properties[2024]}<br>
+        District: ${feature.properties.district}
       `);
       layer.on('contextmenu', () => changeDistrict(feature, layer));
     }
@@ -110,10 +120,22 @@ function updateLegend() {
   });
 }
 
+function loadFireStations() {
+  fetch(fireStationsGeoJSONFile)
+    .then(response => response.json())
+    .then(geojson => {
+      fireStationsLayer = L.geoJSON(geojson, {
+        pointToLayer: (feature, latlng) => {
+          return L.marker(latlng, { icon: fireStationIcon(feature.properties['Station Number']) });
+        }
+      }).addTo(map);
+    });
+}
+
 document.getElementById('exportBtn').addEventListener('click', () => {
   const updatedCSV = csvData.map(row => ({
     ...row,
-    district: neighbourhoodsLayer.toGeoJSON().features.find(
+    District: neighbourhoodsLayer.toGeoJSON().features.find(
       f => f.properties['NEIGHBOURHOOD_NUMBER'] == row['NEIGHBOURHOOD_NUMBER']
     )?.properties.district
   }));
