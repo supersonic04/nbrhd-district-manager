@@ -13,7 +13,7 @@ const fireStationsGeoJSONFile = 'geojson/fire_stations.geojson';
 const fireStationIcon = (stationNumber) =>
   L.divIcon({
     className: 'fire-station-icon',
-    html: `<div style="background-color:#7a0901; color:#FFFFFF; border-radius:50%; padding:10px; text-align:center; width:20px; height:20px; line-height:20px;">${stationNumber}</div>`,
+    html: `<div style="background-color:#FF5722; color:#FFFFFF; border-radius:50%; padding:10px; text-align:center; width:30px; height:30px; line-height:30px;">${stationNumber}</div>`,
     iconSize: [20, 20],
     iconAnchor: [15, 15],
   });
@@ -96,20 +96,16 @@ function renderMap(joinedGeoJSON) {
 function changeDistrict(feature, layer) {
   const newDistrict = prompt("Enter new district (1-6):");
   if (newDistrict >= 1 && newDistrict <= 6) {
-    // Update district assignment
     const currentDistrict = feature.properties.district;
     feature.properties.district = parseInt(newDistrict, 10);
 
-    // Remove feature from current district
     districts[currentDistrict] = districts[currentDistrict].filter(
-      (f) => f.properties['NEIGHBOURHOOD_NUMBER'] !== feature.properties['NEIGHBOURHOOD_NUMBER']
+      f => f.properties['NEIGHBOURHOOD_NUMBER'] !== feature.properties['NEIGHBOURHOOD_NUMBER']
     );
 
-    // Add feature to new district
     if (!districts[newDistrict]) districts[newDistrict] = [];
     districts[newDistrict].push(feature);
 
-    // Re-render the map and legend
     renderMap({ features: neighbourhoodsLayer.toGeoJSON().features });
   }
 }
@@ -117,11 +113,9 @@ function changeDistrict(feature, layer) {
 function updateLegend() {
   const legend = document.getElementById('legend');
   legend.innerHTML = "<h3>Legend</h3>";
-
   const districtSums = {};
 
-  // Calculate event counts for each district
-  Object.keys(districts).forEach((d) => {
+  Object.keys(districts).forEach(d => {
     const total2023 = districts[d].reduce(
       (sum, f) => sum + (parseInt(f.properties[2023]) || 0),
       0
@@ -133,7 +127,6 @@ function updateLegend() {
     districtSums[d] = { total2023, total2024 };
   });
 
-  // Update legend with district totals
   Object.entries(districtSums).forEach(([district, totals]) => {
     legend.innerHTML += `<div>
       <span style="background:${colors[district - 1]}; padding:5px;"></span> 
@@ -142,50 +135,20 @@ function updateLegend() {
   });
 }
 
-
-
-function loadFireStations() {
-  fetch(fireStationsGeoJSONFile)
-    .then(response => response.json())
-    .then(geojson => {
-      fireStationsLayer = L.geoJSON(geojson, {
-        pointToLayer: (feature, latlng) => {
-          return L.marker(latlng, { icon: fireStationIcon(feature.properties['Station Number']) });
-        }
-      }).addTo(map);
-    });
-}
-
 document.getElementById('exportBtn').addEventListener('click', () => {
-  const updatedCSV = csvData.map((row) => {
-    const updatedFeature = neighbourhoodsLayer
-      .toGeoJSON()
-      .features.find(
-        (f) =>
-          f.properties['NEIGHBOURHOOD_NUMBER'] === row['NEIGHBOURHOOD_NUMBER']
-      );
-
+  const updatedCSV = csvData.map(row => {
+    const updatedFeature = neighbourhoodsLayer.toGeoJSON().features.find(
+      f => f.properties['NEIGHBOURHOOD_NUMBER'] == row['NEIGHBOURHOOD_NUMBER']
+    );
     return {
       ...row,
       District: updatedFeature?.properties.district || row.District,
     };
   });
-
   const csv = Papa.unparse(updatedCSV);
   downloadFile(csv, "updated_neighbourhoods.csv");
 });
 
-function downloadCSV(data, filename) {
-  const blob = new Blob([data], { type: 'text/csv;charset=utf-8;' });
-  const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
-  link.setAttribute('download', filename);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-}
-
-// Add button to export district boundaries
 const exportBoundaryBtn = document.createElement('button');
 exportBoundaryBtn.textContent = "Export District Boundaries";
 exportBoundaryBtn.id = "exportBoundaryBtn";
@@ -198,10 +161,9 @@ document.getElementById('exportBoundaryBtn').addEventListener('click', () => {
 });
 
 function mergeDistrictBoundaries(geojson) {
-  const turf = window.turf; // Use Turf.js for geometry merging
   const districtsGeoJSON = {};
 
-  geojson.features.forEach((feature) => {
+  geojson.features.forEach(feature => {
     const district = feature.properties.district;
 
     if (!districtsGeoJSON[district]) {
