@@ -13,8 +13,8 @@ const fireStationsGeoJSONFile = 'geojson/fire_stations.geojson';
 const fireStationIcon = (stationNumber) =>
   L.divIcon({
     className: 'fire-station-icon',
-    html: `<div style="background-color:#FF5722; color:#FFFFFF; border-radius:50%; padding:10px; text-align:center; width:30px; height:30px; line-height:30px;">${stationNumber}</div>`,
-    iconSize: [30, 30],
+    html: `<div style="background-color:#7a0901; color:#FFFFFF; border-radius:50%; padding:10px; text-align:center; width:20px; height:20px; line-height:20px;">${stationNumber}</div>`,
+    iconSize: [20, 20],
     iconAnchor: [15, 15],
   });
 
