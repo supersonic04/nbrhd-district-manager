@@ -14,7 +14,7 @@ body {
 #sidebar {
   position: absolute;
   top: 10px;
-  left: 10px;
+  right: 10px; /* Move sidebar to the top-right */
   width: 300px;
   background: rgba(255, 255, 255, 0.8);
   border-radius: 8px;
@@ -59,6 +59,7 @@ body {
   margin-bottom: 5px;
   font-size: 14px;
 }
+
 
 .fire-station-icon div {
   display: flex;
