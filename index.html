@@ -8,14 +8,18 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 </head>
 <body>
-  <h1>Neighbourhood District Manager</h1>
-  <div>
-    <label for="csvInput">Upload CSV:</label>
-    <input type="file" id="csvInput" accept=".csv">
-    <button id="exportBtn">Export CSV</button>
+  <div id="sidebar">
+    <h1>Neighbourhood District Manager</h1>
+    <div class="controls">
+      <label for="csvInput">Upload CSV:</label>
+      <input type="file" id="csvInput" accept=".csv">
+      <button id="exportBtn">Export CSV</button>
+    </div>
+    <div id="legend">
+      <h3>Legend</h3>
+    </div>
   </div>
   <div id="map"></div>
-  <div id="legend"></div>
 
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
