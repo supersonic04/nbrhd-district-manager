@@ -157,18 +157,73 @@ function loadFireStations() {
 }
 
 document.getElementById('exportBtn').addEventListener('click', () => {
-  const updatedCSV = csvData.map(row => ({
-    ...row,
-    District: neighbourhoodsLayer.toGeoJSON().features.find(
-      f => f.properties['NEIGHBOURHOOD_NUMBER'] == row['NEIGHBOURHOOD_NUMBER']
-    )?.properties.district
-  }));
+  const updatedCSV = csvData.map((row) => {
+    const updatedFeature = neighbourhoodsLayer
+      .toGeoJSON()
+      .features.find(
+        (f) =>
+          f.properties['NEIGHBOURHOOD_NUMBER'] === row['NEIGHBOURHOOD_NUMBER']
+      );
+
+    return {
+      ...row,
+      District: updatedFeature?.properties.district || row.District,
+    };
+  });
+
   const csv = Papa.unparse(updatedCSV);
-  downloadCSV(csv, "updated_neighbourhoods.csv");
+  downloadFile(csv, "updated_neighbourhoods.csv");
 });
 
 function downloadCSV(data, filename) {
   const blob = new Blob([data], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.setAttribute('download', filename);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+// Add button to export district boundaries
+const exportBoundaryBtn = document.createElement('button');
+exportBoundaryBtn.textContent = "Export District Boundaries";
+exportBoundaryBtn.id = "exportBoundaryBtn";
+document.querySelector('#sidebar .controls').appendChild(exportBoundaryBtn);
+
+document.getElementById('exportBoundaryBtn').addEventListener('click', () => {
+  const districtBoundaries = mergeDistrictBoundaries(neighbourhoodsLayer.toGeoJSON());
+  const geoJSON = JSON.stringify(districtBoundaries);
+  downloadFile(geoJSON, "district_boundaries.geojson");
+});
+
+function mergeDistrictBoundaries(geojson) {
+  const turf = window.turf; // Use Turf.js for geometry merging
+  const districtsGeoJSON = {};
+
+  geojson.features.forEach((feature) => {
+    const district = feature.properties.district;
+
+    if (!districtsGeoJSON[district]) {
+      districtsGeoJSON[district] = turf.featureCollection([]);
+    }
+
+    districtsGeoJSON[district].features.push(feature);
+  });
+
+  const mergedBoundaries = Object.entries(districtsGeoJSON).map(
+    ([district, collection]) => {
+      const merged = turf.union(...collection.features);
+      merged.properties = { District: district };
+      return merged;
+    }
+  );
+
+  return turf.featureCollection(mergedBoundaries);
+}
+
+function downloadFile(data, filename) {
+  const blob = new Blob([data], { type: 'text/plain;charset=utf-8;' });
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
   link.setAttribute('download', filename);
