@@ -16,11 +16,27 @@ document.getElementById('csvInput').addEventListener('change', (event) => {
       skipEmptyLines: true,
       complete: (results) => {
         csvData = results.data;
-        loadGeoJSON();
+        processCSVData(csvData);
       }
     });
   }
 });
+
+function processCSVData(data) {
+  // Transform data to split event counts by year
+  const groupedData = data.reduce((acc, row) => {
+    const key = row['NEIGHBOURHOOD_NUMBER'];
+    if (!acc[key]) acc[key] = { name: row['NEIGHBOURHOOD_NAME'], 2023: 0, 2024: 0, district: null };
+    acc[key][row.year] += parseInt(row.EventCount, 10) || 0;
+    acc[key].district = row.district || null;
+    return acc;
+  }, {});
+  csvData = Object.entries(groupedData).map(([number, values]) => ({
+    ...values,
+    NEIGHBOURHOOD_NUMBER: number,
+  }));
+  loadGeoJSON();
+}
 
 function loadGeoJSON() {
   fetch(geoJSONFile)
@@ -33,11 +49,13 @@ function loadGeoJSON() {
 
 function joinCSVToGeoJSON(geojson, csv) {
   return geojson.features.map(feature => {
-    const match = csv.find(row => row['neighbourhood number'] == feature.properties['neighbourhood number']);
+    const match = csv.find(row => row['NEIGHBOURHOOD_NUMBER'] == feature.properties['NEIGHBOURHOOD_NUMBER']);
     if (match) {
       feature.properties = { ...feature.properties, ...match };
-      if (!districts[match['district number']]) districts[match['district number']] = [];
-      districts[match['district number']].push(feature);
+      const district = match.district || 1; // Default district to 1 if not provided
+      feature.properties.district = district;
+      if (!districts[district]) districts[district] = [];
+      districts[district].push(feature);
     }
     return feature;
   });
@@ -48,16 +66,16 @@ function renderMap(joinedGeoJSON) {
 
   neighbourhoodsLayer = L.geoJSON(joinedGeoJSON, {
     style: feature => ({
-      color: colors[feature.properties['district number'] - 1] || "#000000",
+      color: colors[feature.properties.district - 1] || "#000000",
       weight: 1,
       fillOpacity: 0.5,
     }),
     onEachFeature: (feature, layer) => {
       layer.bindTooltip(`
-        <strong>${feature.properties['neighbourhood name']}</strong><br>
-        Neighbourhood #: ${feature.properties['neighbourhood number']}<br>
-        2023 Events: ${feature.properties['event count 2023']}<br>
-        2024 Events: ${feature.properties['event count 2024']}
+        <strong>${feature.properties['NEIGHBOURHOOD_NAME']}</strong><br>
+        Neighbourhood #: ${feature.properties['NEIGHBOURHOOD_NUMBER']}<br>
+        2023 Events: ${feature.properties[2023]}<br>
+        2024 Events: ${feature.properties[2024]}
       `);
       layer.on('contextmenu', () => changeDistrict(feature, layer));
     }
@@ -68,7 +86,7 @@ function renderMap(joinedGeoJSON) {
 function changeDistrict(feature, layer) {
   const newDistrict = prompt("Enter new district (1-6):");
   if (newDistrict >= 1 && newDistrict <= 6) {
-    feature.properties['district number'] = newDistrict;
+    feature.properties.district = newDistrict;
     renderMap({ features: neighbourhoodsLayer.toGeoJSON().features });
   }
 }
@@ -76,12 +94,18 @@ function changeDistrict(feature, layer) {
 function updateLegend() {
   const legend = document.getElementById('legend');
   legend.innerHTML = "<h3>Districts</h3>";
+  const districtSums = {};
+
   Object.keys(districts).forEach(d => {
-    const total2023 = districts[d].reduce((sum, f) => sum + parseInt(f.properties['event count 2023']), 0);
-    const total2024 = districts[d].reduce((sum, f) => sum + parseInt(f.properties['event count 2024']), 0);
+    const total2023 = districts[d].reduce((sum, f) => sum + (parseInt(f.properties[2023]) || 0), 0);
+    const total2024 = districts[d].reduce((sum, f) => sum + (parseInt(f.properties[2024]) || 0), 0);
+    districtSums[d] = { total2023, total2024 };
+  });
+
+  Object.entries(districtSums).forEach(([district, totals]) => {
     legend.innerHTML += `<div>
-      <span style="background:${colors[d - 1]}; padding:5px;"></span> 
-      District ${d}: ${total2023} (2023), ${total2024} (2024) events
+      <span style="background:${colors[district - 1]}; padding:5px;"></span> 
+      District ${district}: ${totals.total2023} (2023), ${totals.total2024} (2024) events
     </div>`;
   });
 }
@@ -89,9 +113,9 @@ function updateLegend() {
 document.getElementById('exportBtn').addEventListener('click', () => {
   const updatedCSV = csvData.map(row => ({
     ...row,
-    'district number': neighbourhoodsLayer.toGeoJSON().features.find(
-      f => f.properties['neighbourhood number'] == row['neighbourhood number']
-    )?.properties['district number']
+    district: neighbourhoodsLayer.toGeoJSON().features.find(
+      f => f.properties['NEIGHBOURHOOD_NUMBER'] == row['NEIGHBOURHOOD_NUMBER']
+    )?.properties.district
   }));
   const csv = Papa.unparse(updatedCSV);
   downloadCSV(csv, "updated_neighbourhoods.csv");
