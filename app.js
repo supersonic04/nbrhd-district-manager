@@ -96,22 +96,44 @@ function renderMap(joinedGeoJSON) {
 function changeDistrict(feature, layer) {
   const newDistrict = prompt("Enter new district (1-6):");
   if (newDistrict >= 1 && newDistrict <= 6) {
-    feature.properties.district = newDistrict;
+    // Update district assignment
+    const currentDistrict = feature.properties.district;
+    feature.properties.district = parseInt(newDistrict, 10);
+
+    // Remove feature from current district
+    districts[currentDistrict] = districts[currentDistrict].filter(
+      (f) => f.properties['NEIGHBOURHOOD_NUMBER'] !== feature.properties['NEIGHBOURHOOD_NUMBER']
+    );
+
+    // Add feature to new district
+    if (!districts[newDistrict]) districts[newDistrict] = [];
+    districts[newDistrict].push(feature);
+
+    // Re-render the map and legend
     renderMap({ features: neighbourhoodsLayer.toGeoJSON().features });
   }
 }
 
 function updateLegend() {
   const legend = document.getElementById('legend');
-  legend.innerHTML = "<h3>Districts</h3>";
+  legend.innerHTML = "<h3>Legend</h3>";
+
   const districtSums = {};
 
-  Object.keys(districts).forEach(d => {
-    const total2023 = districts[d].reduce((sum, f) => sum + (parseInt(f.properties[2023]) || 0), 0);
-    const total2024 = districts[d].reduce((sum, f) => sum + (parseInt(f.properties[2024]) || 0), 0);
+  // Calculate event counts for each district
+  Object.keys(districts).forEach((d) => {
+    const total2023 = districts[d].reduce(
+      (sum, f) => sum + (parseInt(f.properties[2023]) || 0),
+      0
+    );
+    const total2024 = districts[d].reduce(
+      (sum, f) => sum + (parseInt(f.properties[2024]) || 0),
+      0
+    );
     districtSums[d] = { total2023, total2024 };
   });
 
+  // Update legend with district totals
   Object.entries(districtSums).forEach(([district, totals]) => {
     legend.innerHTML += `<div>
       <span style="background:${colors[district - 1]}; padding:5px;"></span> 
@@ -119,6 +141,7 @@ function updateLegend() {
     </div>`;
   });
 }
+
 
 function loadFireStations() {
   fetch(fireStationsGeoJSONFile)
