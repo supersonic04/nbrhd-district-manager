@@ -143,6 +143,7 @@ function updateLegend() {
 }
 
 
+
 function loadFireStations() {
   fetch(fireStationsGeoJSONFile)
     .then(response => response.json())
