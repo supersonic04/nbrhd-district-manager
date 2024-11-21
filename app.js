@@ -193,3 +193,14 @@ function downloadFile(data, filename) {
   link.click();
   document.body.removeChild(link);
 }
+function loadFireStations() {
+  fetch(fireStationsGeoJSONFile)
+    .then(response => response.json())
+    .then(geojson => {
+      fireStationsLayer = L.geoJSON(geojson, {
+        pointToLayer: (feature, latlng) => {
+          return L.marker(latlng, { icon: fireStationIcon(feature.properties['Station Number']) });
+        }
+      }).addTo(map);
+    });
+}
